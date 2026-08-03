@@ -1,0 +1,49 @@
+name: Build iOS IPA (unsigned, free)
+
+# 免费云端 Mac 编译：在 GitHub 的 macos-latest runner 上编译未签名 IPA。
+# 适用：Windows 开发机、无 Apple 开发者账号。
+# 用法：把代码 push 到 GitHub（或手动在 Actions 页点 Run workflow），
+#       跑完后在 Artifacts 下载 build/ios/ipa/Runner.ipa，回 Windows 用
+#       Sideloadly + 免费 Apple ID 侧载进 iPhone。
+
+on:
+  workflow_dispatch:   # 手动触发（Actions 页面 → 此 workflow → Run workflow）
+  push:
+    branches: [ main ]  # 也可改为你的主分支名，push 即自动构建
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true   # 拉取 assets/lama_fp32.onnx（Git LFS，208MB）
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          # 如需与本地版本严格一致，取消下面这行注释并填上本地 Flutter 版本：
+          # flutter-version: '3.44.8'
+          cache: true
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      # 你的项目 ios/Podfile 缺失，flutter build 会因 pod install 失败。
+      # 若 Podfile 不存在则重建 iOS 平台文件（你未自定义 iOS，安全）。
+      - name: Ensure iOS Podfile exists
+        run: test -f ios/Podfile || flutter create --platforms=ios .
+
+      # 关键：--no-codesign 生成「未签名」IPA（后续由 Sideloadly 用免费 Apple ID 签名）
+      - name: Build unsigned IPA
+        run: flutter build ipa --release --no-codesign
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: inpaint-pro-unsigned-ipa
+          path: build/ios/ipa/*.ipa
+          retention-days: 30
