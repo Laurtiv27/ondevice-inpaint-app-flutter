@@ -164,7 +164,14 @@ class InpaintModel {
     // 实测反而更慢。与原生 opts.setIntraOpNumThreads(cores)+addXnnpack
     // 等价，但这里按官方推荐把 ORT 线程设为 1，让 XNNPACK 独占调度。
     options.setIntraOpNumThreads(1);
-    options.appendXnnpackProvider();
+    // 防御：极少数 iOS 构建/环境下 XNNPACK provider 可能不可用，
+    // 此时退回到默认 CPU EP 即可——推理数值完全确定、结果不变，
+    // 只是可能稍慢。避免因此导致模型加载直接抛异常、整页白屏。
+    try {
+      options.appendXnnpackProvider();
+    } catch (_) {
+      // 退回 CPU EP，无需额外处理
+    }
     _session = OrtSession.fromFile(modelFile, options);
   }
 
