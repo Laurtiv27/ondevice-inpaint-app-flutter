@@ -53,3 +53,8 @@ flog.txt
 build_log.txt
 dl_ndk2.sh
 .cache/
+
+# Gradle build outputs
+android/build/
+android/app/build/
+android/.gradle/
