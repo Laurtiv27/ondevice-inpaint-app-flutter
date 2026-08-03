@@ -37,9 +37,18 @@ jobs:
       - name: Ensure iOS Podfile exists
         run: test -f ios/Podfile || flutter create --platforms=ios .
 
-      # 关键：--no-codesign 生成「未签名」IPA（后续由 Sideloadly 用免费 Apple ID 签名）
-      - name: Build unsigned IPA
-        run: flutter build ipa --release --no-codesign
+      # 关键：--no-codesign 编译出未签名的 .app，再手动打包成 IPA
+      # 注：flutter build ipa --no-codesign 在 CI 上有时不生成 ipa 文件，
+      #     因此改用 flutter build ios 再自己 zip Payload/Runner.app。
+      - name: Build unsigned iOS app
+        run: flutter build ios --release --no-codesign
+
+      - name: Package unsigned IPA
+        run: |
+          mkdir -p build/ios/ipa/Payload
+          cp -r build/ios/iphoneos/Runner.app build/ios/ipa/Payload/
+          cd build/ios/ipa
+          zip -r Runner.ipa Payload
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
